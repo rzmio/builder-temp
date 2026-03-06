@@ -71,12 +71,6 @@ jobs:
       uses: pierotofy/set-swap-space@master
       with:
         swap-size-gb: 12
-        
-    - name: Maximize build disk space
-     uses: easimon/maximize-build-space@v10
-
-    - name: Cache
-      uses: actions/cache@v5.0.3
       
     - name: Prepare the environment
       run: |
