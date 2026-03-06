@@ -14,7 +14,7 @@ on:
       DEVICE_TREE_URL:
         description: 'DEVICE_TREE_URL'
         required: true
-        default: ''https://github.com/frstprjkt/device_xiaomi_chime-recovery
+        default: ''https://github.com/rzmio/reovery_xiaomi_chime
       DEVICE_TREE_BRANCH:
         description: 'DEVICE_TREE_BRANCH'
         required: true
