@@ -64,15 +64,20 @@ jobs:
         echo "Device Name: ${{ inputs.DEVICE_NAME }}"
         echo "Build Target: ${{ inputs.BUILD_TARGET }}image"
 
-    - name: Cleanup
-      uses: rokibhasansagar/slimhub_actions@main
-      
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@v1.3.1
+  
     - name: Set Swap Space
       uses: pierotofy/set-swap-space@master
       with:
         swap-size-gb: 12
         
+    - name: Maximize build disk space
+     uses: easimon/maximize-build-space@v10
 
+    - name: Cache
+      uses: actions/cache@v5.0.3
+      
     - name: Prepare the environment
       run: |
         sudo apt update && sudo apt upgrade -y
