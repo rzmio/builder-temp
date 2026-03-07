@@ -1,0 +1,48 @@
+name: Create 4.19.325-caf branch with merges
+
+on:
+  workflow_dispatch:  # manual trigger only
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: rzmio/kernel_xiaomi_citrus
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          fetch-depth: 0  # fetch all history and tags
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+      - name: Create and switch to new branch 4.19.325-caf
+        run: |
+          git checkout -b 4.19.325-caf main
+
+      - name: Add CAF remote and fetch the specific tag
+        run: |
+          git remote add caf https://git.codelinaro.org/clo/la/kernel/msm-4.19.git
+          git fetch caf tag LA.UM.9.15.r1-08400-KAMORTA.QSSI14.0 --no-tags
+
+      - name: Merge CAF tag
+        run: |
+          git merge LA.UM.9.15.r1-08400-KAMORTA.QSSI14.0 -m "Merge CAF tag LA.UM.9.15.r1-08400-KAMORTA.QSSI14.0"
+        continue-on-error: false  # stop if merge fails
+
+      - name: Add upstream remote and fetch v4.19.325
+        run: |
+          git remote add upstream https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+          git fetch upstream tag v4.19.325 --no-tags
+
+      - name: Merge upstream v4.19.325
+        run: |
+          git merge v4.19.325 -m "Merge upstream v4.19.325"
+        continue-on-error: false
+
+      - name: Push the branch to target repository
+        run: |
+          git push origin 4.19.325-caf
