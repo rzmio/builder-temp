@@ -110,7 +110,7 @@ jobs:
         cd android-recovery
         git config --global user.name "${{ github.actor }}"
         git config --global user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
-        repo init --depth=1 -u ${{ steps.manifest.outputs.value }} -b ${{ inputs.MANIFEST_BRANCH }}
+        repo init --depth=1 -u ${{ steps.manifest.outputs.value }} -b ${{ inputs.MANIFEST_BRANCH }} -m default.xml
         
     - name: Repo Sync
       run: |
