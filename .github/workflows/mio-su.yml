@@ -1,17 +1,26 @@
 name: Build MioSU (minSdk 29)
 
 on:
-  workflow_dispatch:    # allows manual trigger from Actions tab
+  workflow_dispatch:
 
 jobs:
   build-miosu:
     runs-on: ubuntu-latest
     steps:
+      # Checkout the MioSU repository into a dedicated directory
       - name: Checkout MioSU repository
         uses: actions/checkout@v4
         with:
           repository: rzmio/MioSU
-          path: MioSU
+          path: miosu-source
+
+      # Debug: list contents to verify checkout
+      - name: Debug - list files
+        run: |
+          echo "Contents of workspace:"
+          ls -la
+          echo "Contents of miosu-source:"
+          ls -la miosu-source
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -22,16 +31,16 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Grant execute permission
-        run: chmod +x MioSU/gradlew
+      - name: Grant execute permission to gradlew
+        run: chmod +x miosu-source/gradlew
 
       - name: Build MioSU Manager with minSdk 29
         run: |
-          cd MioSU
+          cd miosu-source
           ./gradlew :manager:assembleDebug -PandroidMinSdkVersion=29
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MioSU-Manager-minSdk29
-          path: MioSU/manager/build/outputs/apk/debug/*.apk
+          path: miosu-source/manager/build/outputs/apk/debug/*.apk
