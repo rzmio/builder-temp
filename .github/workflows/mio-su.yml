@@ -13,17 +13,6 @@ jobs:
           repository: rzmio/MioSU
           path: miosu-source
 
-      # Debug step to verify checkout (optional)
-      - name: Debug - list files
-        run: |
-          echo "Workspace contents:"
-          ls -la
-          echo "miosu-source contents:"
-          ls -la miosu-source
-          echo "manager subdirectory:"
-          ls -la miosu-source/manager
-
-      # Use JDK 21 (required for Java 21 source compatibility)
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -33,41 +22,30 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      # Force minSdkVersion to 29 by adding to gradle.properties
+      # Force minSdkVersion to 29
       - name: Set minSdkVersion to 29
         run: |
           echo "androidMinSdkVersion=29" >> miosu-source/manager/gradle.properties
-          echo "Updated gradle.properties:"
-          cat miosu-source/manager/gradle.properties
 
       # Fix AIDL package path and declaration
       - name: Fix AIDL package for MioSU
         run: |
-          # Create the correct directory structure
           mkdir -p miosu-source/manager/app/src/main/aidl/me/keion/miosu
-
-          # Move and rename the AIDL file to the new package path
           mv miosu-source/manager/app/src/main/aidl/me/weishu/kernelsu/IKsuInterface.aidl \
              miosu-source/manager/app/src/main/aidl/me/keion/miosu/IKsuInterface.aidl
-
-          # Update the package declaration inside the AIDL file
           sed -i 's/package me\.weishu\.kernelsu;/package me.keion.miosu;/' \
              miosu-source/manager/app/src/main/aidl/me/keion/miosu/IKsuInterface.aidl
-
-          # Remove the old empty directory
           rm -rf miosu-source/manager/app/src/main/aidl/me/weishu
-
-          # Optional: verify the change
-          echo "Updated AIDL file content:"
-          head -n 5 miosu-source/manager/app/src/main/aidl/me/keion/miosu/IKsuInterface.aidl
 
       - name: Grant execute permission to gradlew
         run: chmod +x miosu-source/manager/gradlew
 
-      - name: Build MioSU Manager
+      # Clean previous builds and rebuild native code
+      - name: Clean and rebuild MioSU Manager
         run: |
           cd miosu-source/manager
-          ./gradlew :app:assembleDebug
+          ./gradlew clean
+          ./gradlew :app:assembleDebug --no-build-cache
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
