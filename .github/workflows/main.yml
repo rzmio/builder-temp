@@ -12,23 +12,38 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 12
+
       - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
           repository: rzmio/kernel_xiaomi_citrus
-          ref: main-upstream   # or the branch you want to build
+          ref: main-upstream
           fetch-depth: 1
 
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y git make gcc flex bison libncurses-dev libssl-dev bc python3 python2
+          sudo apt install -y git make gcc flex bison libncurses-dev libssl-dev bc python3
 
       - name: Download prebuilt Clang
         run: |
           mkdir -p toolchain/clang
           cd toolchain/clang
-          # Using Clang 14 from Android (r450784d)
           wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-r450784d.tar.gz
           tar -xzf clang-r450784d.tar.gz
           rm clang-r450784d.tar.gz
@@ -38,7 +53,6 @@ jobs:
         run: |
           mkdir -p toolchain/gcc
           cd toolchain/gcc
-          # Using Linaro GCC 7.5 for aarch64
           wget https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
           tar -xf gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
           mv gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu gcc
@@ -65,8 +79,7 @@ jobs:
       - name: Prepare AnyKernel3
         run: |
           git clone https://github.com/osm0sis/AnyKernel3 --depth=1
-          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/  # adjust if your device uses Image.gz or Image
-          # If you have modules, you can copy them too (optional)
+          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
 
       - name: Create flashable ZIP
         run: |
