@@ -1,7 +1,7 @@
-name: Build MioSU Manager (only)
+name: Build MioSU Manager (no ksud build)
 
 on:
-  workflow_dispatch:  # manual trigger
+  workflow_dispatch:
 
 jobs:
   build-manager:
@@ -22,33 +22,30 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk
-
-      - name: Install Android NDK
-        uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r26d
-          add-to-path: false
-
-      - name: Build ksud for ARM64 and x86_64
-        working-directory: miosu/userspace/ksud
+      - name: Get latest KernelSU release tag
+        id: get_release
         run: |
-          # Set NDK home from the action output
-          echo "NDK_HOME=$ANDROID_NDK_HOME" >> $GITHUB_ENV
-          # Build for both targets using cargo-ndk
-          cargo ndk -t armeabi-v7a -t arm64-v8a -t x86 -t x86_64 build --release
-          # The output will be in target/<triple>/release/ksud
+          TAG=$(curl -s https://api.github.com/repos/tiann/KernelSU/releases/latest | grep '"tag_name":' | cut -d '"' -f 4)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Copy ksud binaries to jniLibs
+      - name: Download ksud (arm64)
+        run: |
+          curl -L -o ksud-arm64 \
+            "https://github.com/tiann/KernelSU/releases/download/${{ steps.get_release.outputs.tag }}/ksud-aarch64-linux-android"
+          chmod +x ksud-arm64
+
+      - name: Download ksud (x86_64)
+        run: |
+          curl -L -o ksud-x86_64 \
+            "https://github.com/tiann/KernelSU/releases/download/${{ steps.get_release.outputs.tag }}/ksud-x86_64-linux-android"
+          chmod +x ksud-x86_64
+
+      - name: Copy ksud to jniLibs
         run: |
           mkdir -p miosu/manager/app/src/main/jniLibs/arm64-v8a
           mkdir -p miosu/manager/app/src/main/jniLibs/x86_64
-          cp miosu/userspace/ksud/target/aarch64-linux-android/release/ksud miosu/manager/app/src/main/jniLibs/arm64-v8a/libksud.so
-          cp miosu/userspace/ksud/target/x86_64-linux-android/release/ksud miosu/manager/app/src/main/jniLibs/x86_64/libksud.so
+          cp ksud-arm64 miosu/manager/app/src/main/jniLibs/arm64-v8a/libksud.so
+          cp ksud-x86_64 miosu/manager/app/src/main/jniLibs/x86_64/libksud.so
 
       - name: Grant permission to gradlew
         run: chmod +x miosu/manager/gradlew
