@@ -2,92 +2,39 @@ name: Build Kernel for Poco M3 (citrus)
 
 on:
   workflow_dispatch:
-    inputs:
-      defconfig:
-        description: 'Defconfig file path (e.g., vendor/citrus-perf_defconfig)'
-        required: true
-        default: 'vendor/citrus-perf_defconfig'
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+      - name: Checkout workflows repo (to get script)
+        uses: actions/checkout@v4
         with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
+          path: workflows
 
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 12
-
-      - name: Checkout kernel source
+      - name: Checkout kernel source (citrus branch)
         uses: actions/checkout@v4
         with:
           repository: rzmio/kernel_xiaomi_citrus
-          ref: main-upstream
-          fetch-depth: 1
+          ref: citrus
+          path: kernel
 
-      - name: Install dependencies
+      - name: Update Environment
+        run: sudo apt update -y
+
+      - name: Install Dependencies
+        run: sudo apt install -y git build-essential zip curl
+
+      - name: Download Neutron Toolchain
         run: |
-          sudo apt update
-          sudo apt install -y git make gcc flex bison libncurses-dev libssl-dev bc python3
-
-      - name: Download prebuilt Clang
-        run: |
-          mkdir -p toolchain/clang
-          cd toolchain/clang
-          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-r450784d.tar.gz
-          tar -xzf clang-r450784d.tar.gz
-          rm clang-r450784d.tar.gz
-          echo "$(pwd)/bin" >> $GITHUB_PATH
-
-      - name: Download prebuilt GCC (aarch64)
-        run: |
-          mkdir -p toolchain/gcc
-          cd toolchain/gcc
-          wget https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
-          tar -xf gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
-          mv gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu gcc
-          echo "$(pwd)/gcc/bin" >> $GITHUB_PATH
-
-      - name: Set up environment variables
-        run: |
-          echo "PATH=$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc/bin:$PATH" >> $GITHUB_ENV
-          echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CLANG_TRIPLE=aarch64-linux-gnu-" >> $GITHUB_ENV
-
-      - name: Clean and prepare
-        run: make mrproper
-
-      - name: Apply defconfig
-        run: |
-          make O=out ARCH=arm64 ${{ github.event.inputs.defconfig }}
+          bash workflows/scripts/mio-ci.sh $GITHUB_WORKSPACE/kernel --tools
 
       - name: Build kernel
         run: |
-          make -j$(nproc) O=out ARCH=arm64
+          bash workflows/scripts/mio-ci.sh $GITHUB_WORKSPACE/kernel --build
 
-      - name: Prepare AnyKernel3
-        run: |
-          git clone https://github.com/osm0sis/AnyKernel3 --depth=1
-          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
-
-      - name: Create flashable ZIP
-        run: |
-          cd AnyKernel3
-          zip -r9 ../kernel-citrus.zip * -x .git README.md *placeholder
-
-      - name: Upload artifact
+      - name: Upload kernel
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-citrus
-          path: kernel-citrus.zip
+          name: citrus-kernel
+          path: kernel/*.zip
