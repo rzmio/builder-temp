@@ -1,0 +1,80 @@
+name: Build Kernel for Poco M3 (citrus)
+
+on:
+  workflow_dispatch:
+    inputs:
+      defconfig:
+        description: 'Defconfig file path (e.g., vendor/citrus-perf_defconfig)'
+        required: true
+        default: 'vendor/citrus-perf_defconfig'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          repository: rzmio/kernel_xiaomi_citrus
+          ref: main-upstream   # or the branch you want to build
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git make gcc flex bison libncurses-dev libssl-dev bc python3 python2
+
+      - name: Download prebuilt Clang
+        run: |
+          mkdir -p toolchain/clang
+          cd toolchain/clang
+          # Using Clang 14 from Android (r450784d)
+          wget https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/master/clang-r450784d.tar.gz
+          tar -xzf clang-r450784d.tar.gz
+          rm clang-r450784d.tar.gz
+          echo "$(pwd)/bin" >> $GITHUB_PATH
+
+      - name: Download prebuilt GCC (aarch64)
+        run: |
+          mkdir -p toolchain/gcc
+          cd toolchain/gcc
+          # Using Linaro GCC 7.5 for aarch64
+          wget https://releases.linaro.org/components/toolchain/binaries/7.5-2019.12/aarch64-linux-gnu/gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
+          tar -xf gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu.tar.xz
+          mv gcc-linaro-7.5.0-2019.12-x86_64_aarch64-linux-gnu gcc
+          echo "$(pwd)/gcc/bin" >> $GITHUB_PATH
+
+      - name: Set up environment variables
+        run: |
+          echo "PATH=$(pwd)/toolchain/clang/bin:$(pwd)/toolchain/gcc/bin:$PATH" >> $GITHUB_ENV
+          echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CLANG_TRIPLE=aarch64-linux-gnu-" >> $GITHUB_ENV
+
+      - name: Clean and prepare
+        run: make mrproper
+
+      - name: Apply defconfig
+        run: |
+          make O=out ARCH=arm64 ${{ github.event.inputs.defconfig }}
+
+      - name: Build kernel
+        run: |
+          make -j$(nproc) O=out ARCH=arm64
+
+      - name: Prepare AnyKernel3
+        run: |
+          git clone https://github.com/osm0sis/AnyKernel3 --depth=1
+          cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/  # adjust if your device uses Image.gz or Image
+          # If you have modules, you can copy them too (optional)
+
+      - name: Create flashable ZIP
+        run: |
+          cd AnyKernel3
+          zip -r9 ../kernel-citrus.zip * -x .git README.md *placeholder
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-citrus
+          path: kernel-citrus.zip
